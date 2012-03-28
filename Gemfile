@@ -1,6 +1,10 @@
 source "http://rubygems.org"
 
+# Dependencies for gem to work
 gem "yahoo_sports", "~> 0.2.0"
+gem "oauth", "~> 0.4.5"
+gem "json", "~> 1.6.6"
+gem "launch", "~> 2.1.1"
 
 
 # Add dependencies to develop your gem here.
