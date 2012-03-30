@@ -8,6 +8,7 @@
  
 
 # files required to use this gem
+require 'twitter'
 require 'net/http'
 require 'yahoo_sports'
 require 'oauth'
@@ -15,55 +16,58 @@ require 'json'
 require 'launchy'
 
 
-
-class SportFu
+module SportFu
 	
 	VERSION = '0.0.1'
 	
-	attr :onsumer, :request_token, :pin, :access_token, :redirect_to, :response
-	
-	auth = {}
-	
-	# Initialize the class with a user name and password for the twitter account
-	def initialize(key, secret)
-			@consumer = OAuth::Consumer.new key, secret,
-																			{ :site => 'http://api.twitter.com/',
-																				:request_token_path => '/oauth/request_token',
-																				:access_token_path => '/oauth/access_token',
-																				:authorize_path => '/oauth/authorize'}
-	end
-	
-	# Reuires the user to authenticate and allow access to the app.
-	# Using launchy it launches a default web browser that will then
-	# prompt the user to log in.
-	def grantAccess()
-		@request_token = @consumer.get_request_token
-		Launchy.open("#{@request_token.authorize_url}")
-		puts "Enter pin that the page gave you"
-		@pin = STDIN.readline.chomp
-		@access_token = @request_token.get_access_token(:oauth_verifier => pin)
-		#puts @access_token.get('/account/verify_credentials.json')
-	end
-	
-	def getTimeline()
-		@response = @access_token.request(:get, "http://ap1.twitter.com/1/statuses/home_timeline.json")
-	end
-	
-	def postUpdate(tweet='')
-		if tweet.length !
-			@response = @access_token.post("https://api.twitter.com/1/statuses/update.json", :status => tweet)
-			JSON.parse(@response.body)
-		end
-	end
+	class TwitFu
 		
-	
-end
+		attr :consumer, :request_token, :pin, :access_token, :redirect_to, :response, :token_hash
+		
+		# Initialize the class with a user name and password for the twitter account
+		def initialize(consumer_key, consumer_secret)
+				@consumer = OAuth::Consumer.new consumer_key, consumer_secret,
+																				{ :site => 'http://twitter.com/',
+																					:request_token_path => '/oauth/request_token',
+																					:access_token_path => '/oauth/access_token',
+																					:authorize_path => '/oauth/authorize',
+																					:scheme => :header										
+																				}
+		end
+		
+		# Requires the user to authenticate the app. if they have never
+		# done this before it directs them to the twitter site where they
+		# are presented with a pin that they enter and it writes the
+		# authentication tokens to a file where they are read back in as
+		# not to generate a new pin each call.
+		def grantAccess()
+			if File.zero?('lib/data.txt') #if files doesn't exist it then gets the access_tokens
+				@request_token = @consumer.get_request_token
+				Launchy.open("#{@request_token.authorize_url}")
+				puts "Enter pin that the page gave you: #{@pin}" 
+				@pin = STDIN.readline.chomp
+				@access_token = @request_token.get_access_token(:oauth_verifier => @pin)
+				puts @access_token.token
+				File.open('lib/data.txt','w') do |f|
+					f.puts @access_token.token
+					f.puts @access_token.secret
+				end
+			else #if they exist it simple reads them into token_hash
+				File.open('lib/data.txt','r') do |f|
+					@token_hash = { :oauth_token => f.readline.chomp,
+											    :oauth_token_secret => f.readline.chomp
+										 		}
+					end
+			end
+		end
+		
+	end # Class Client End
+end # Module SportFu end
 
 key = "8gHeFgeBBx4UsLHoF15Y4A"
 secret = "t3tMQZZ4bq4jgwdaC1HD5A5pi2HdRN34nicVyN1xo"
-app = SportFu.new(key,secret)
+app = SportFu::TwitFu.new(key,secret)
 app.grantAccess
-#app.getTimeline
-puts "Enter a tweet: "
-tweet = STDIN.readline.chomp
-app.postUpdate(tweet)
+#puts "Enter a tweet: "
+#tweet = STDIN.readline.chomp
+#app.postUpdate(tweet)
