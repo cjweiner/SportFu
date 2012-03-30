@@ -22,7 +22,11 @@ module SportFu
 	
 	class TwitFu
 		
-		attr :consumer, :request_token, :pin, :access_token, :redirect_to, :response, :token_hash
+		# variables dealing with oauth
+		attr :consumer, :request_token, :pin, :access_token, :response, :token_hash
+		
+		# variables that handle user interaction such as posting
+		attr :client
 		
 		# Initialize the class with a user name and password for the twitter account
 		def initialize(consumer_key, consumer_secret)
@@ -44,7 +48,7 @@ module SportFu
 			if File.zero?('lib/data.txt') #if files doesn't exist it then gets the access_tokens
 				@request_token = @consumer.get_request_token
 				Launchy.open("#{@request_token.authorize_url}")
-				puts "Enter pin that the page gave you: #{@pin}" 
+				print "Enter pin that the page gave you:" 
 				@pin = STDIN.readline.chomp
 				@access_token = @request_token.get_access_token(:oauth_verifier => @pin)
 				puts @access_token.token
@@ -61,6 +65,38 @@ module SportFu
 			end
 		end
 		
+		# Configure the information for twitter to know.
+		# This is where the oauth keys are set
+		def configureTwitter(key, secret)
+			@client = Twitter
+			@client.configure do |config|
+				config.consumer_key = key
+				config.consumer_secret = secret
+				config.oauth_token = @token_hash[:oauth_token]
+				config.oauth_token_secret = @token_hash[:oauth_token_secret]
+			end
+		end
+		
+		# Method that posts tweets to wall
+		def postTweet(status)
+			@client.update(status)
+		end
+		
+		def getTimeLine()
+			last_id = 1
+			while true
+				timeline = @client.home_timeline()
+				unless timeline.empty?
+					last_id = timeline[0].id
+					
+					timeline.reverse_each do |st|
+						puts "#{st.user.name} said #{st.text}"
+					end
+					sleep 25
+				end
+			end
+		end
+		
 	end # Class Client End
 end # Module SportFu end
 
@@ -68,6 +104,5 @@ key = "8gHeFgeBBx4UsLHoF15Y4A"
 secret = "t3tMQZZ4bq4jgwdaC1HD5A5pi2HdRN34nicVyN1xo"
 app = SportFu::TwitFu.new(key,secret)
 app.grantAccess
-#puts "Enter a tweet: "
-#tweet = STDIN.readline.chomp
-#app.postUpdate(tweet)
+app.configureTwitter(key,secret)
+app.getTimeLine
